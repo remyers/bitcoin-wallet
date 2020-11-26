@@ -151,6 +151,10 @@ public class BlockchainService extends LifecycleService {
     private static final String ACTION_RESET_BLOCKCHAIN = BlockchainService.class.getPackage().getName()
             + ".reset_blockchain";
 
+    private static final long SHORT_DELAY_STOP = 5 * DateUtils.MINUTE_IN_MILLIS; // DateUtils.MINUTE_IN_MILLIS / 2;
+    private static final long MEDIUM_DELAY_STOP = 5 * DateUtils.MINUTE_IN_MILLIS; // DateUtils.MINUTE_IN_MILLIS;
+    private static final long LONG_DELAY_STOP = 20 * DateUtils.MINUTE_IN_MILLIS; // 5 * DateUtils.MINUTE_IN_MILLIS;
+
     private static final Logger log = LoggerFactory.getLogger(BlockchainService.class);
 
     public static void start(final Context context, final boolean cancelCoinsReceived) {
@@ -275,7 +279,7 @@ public class BlockchainService extends LifecycleService {
 
         @Override
         public void onPeerConnected(final Peer peer, final int peerCount) {
-            postDelayedStopSelf(DateUtils.MINUTE_IN_MILLIS / 2);
+            postDelayedStopSelf(SHORT_DELAY_STOP);
             changed(peerCount);
         }
 
@@ -304,7 +308,7 @@ public class BlockchainService extends LifecycleService {
 
         @Override
         public void onChainDownloadStarted(final Peer peer, final int blocksToDownload) {
-            postDelayedStopSelf(DateUtils.MINUTE_IN_MILLIS / 2);
+            postDelayedStopSelf(SHORT_DELAY_STOP);
             this.blocksToDownload.set(blocksToDownload);
             if (blocksToDownload >= CONNECTIVITY_NOTIFICATION_PROGRESS_MIN_BLOCKS) {
                 config.maybeIncrementBestChainHeightEver(blockChain.getChainHead().getHeight() + blocksToDownload);
@@ -329,7 +333,7 @@ public class BlockchainService extends LifecycleService {
         public void run() {
             lastMessageTime.set(System.currentTimeMillis());
 
-            postDelayedStopSelf(DateUtils.MINUTE_IN_MILLIS / 2);
+            postDelayedStopSelf(SHORT_DELAY_STOP);
             final int blocksToDownload = this.blocksToDownload.get();
             final int blocksLeft = this.blocksLeft.get();
             if (blocksToDownload >= CONNECTIVITY_NOTIFICATION_PROGRESS_MIN_BLOCKS)
@@ -579,7 +583,7 @@ public class BlockchainService extends LifecycleService {
         final NewTransactionLiveData newTransaction = new NewTransactionLiveData(wallet.getValue());
         newTransaction.observe(this, tx -> {
             final Wallet wallet = BlockchainService.this.wallet.getValue();
-            postDelayedStopSelf(5 * DateUtils.MINUTE_IN_MILLIS);
+            postDelayedStopSelf(LONG_DELAY_STOP);
             final Coin amount = tx.getValue(wallet);
             if (amount.isPositive()) {
                 final Address address = WalletUtils.getWalletAddressOfReceived(tx, wallet);
@@ -631,7 +635,8 @@ public class BlockchainService extends LifecycleService {
                 peerGroup.setMaxConnections(trustedPeerOnly ? 0 : maxConnectedPeers);
                 peerGroup.setConnectTimeoutMillis(Constants.PEER_TIMEOUT_MS);
                 peerGroup.setPeerDiscoveryTimeoutMillis(Constants.PEER_DISCOVERY_TIMEOUT_MS);
-                peerGroup.setStallThreshold(20, Block.HEADER_SIZE * 10);
+                // peerGroup.setStallThreshold(20, Block.HEADER_SIZE * 10);
+                peerGroup.setStallThreshold(3600, 5);
 
                 final ResolveDnsTask resolveDnsTask = new ResolveDnsTask(backgroundHandler) {
                     @Override
@@ -668,7 +673,7 @@ public class BlockchainService extends LifecycleService {
                 peerGroup.startAsync();
                 peerGroup.startBlockChainDownload(blockchainDownloadListener);
 
-                postDelayedStopSelf(DateUtils.MINUTE_IN_MILLIS / 2);
+                postDelayedStopSelf(SHORT_DELAY_STOP);
             }
 
             private void shutdown() {
@@ -687,7 +692,7 @@ public class BlockchainService extends LifecycleService {
     @Override
     public int onStartCommand(final Intent intent, final int flags, final int startId) {
         super.onStartCommand(intent, flags, startId);
-        postDelayedStopSelf(DateUtils.MINUTE_IN_MILLIS);
+        postDelayedStopSelf(MEDIUM_DELAY_STOP);
 
         if (intent != null) {
             final String action = intent.getAction();
